@@ -3,4 +3,14 @@
   <ItemGroup>
     <ClCompile Include="main.c" />
   </ItemGroup>
+  <ItemGroup>
+    <Filter Include="assets">
+      <UniqueIdentifier>{51ff57f0-7359-4a9b-b0e7-1c25b07624e6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\..\Downloads\bird.png">
+      <Filter>assets</Filter>
+    </Image>
+  </ItemGroup>
 </Project>
