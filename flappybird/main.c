@@ -3,16 +3,32 @@
 #include <direct.h>           // _getcwd
 
 void updateClouds(int cloudsX[], int monitorWidth) {
-	for (int i = 0; i < sizeof(cloudsX); i++) {
-		if (cloudsX[i] > monitorWidth) {
-			cloudsX[i] = 0;
-		}
-		cloudsX[i] += 4;
+	// aqui habia problemad de overflow
+	__asm {
+		MOV edi, cloudsX
+		mov ecx, 4
+
+		ciclo:
+			MOV ebx, monitorWidth
+			MOV eax, [ edi ]
+			ADD eax , 4
+
+			CMP eax, ebx
+			JAE reset
+			JMP siguiente
+
+			reset:
+				MOV eax, 0
+			siguiente:
+			MOV [ edi ], eax
+			ADD edi, 4
+		loop ciclo
 	}
 }
 
 int main() {
 	int monitor = GetCurrentMonitor();
+	int monitorWidth = GetMonitorWidth(monitor);
 	InitWindow(GetMonitorWidth(monitor), GetMonitorHeight(monitor), "Flappy Bird");
 
 	// texturas
@@ -43,10 +59,9 @@ int main() {
 		DrawTexture(cloud2, cloudX[1], 70, RAYWHITE);
 		DrawTexture(cloud3, cloudX[2], 120, RAYWHITE);
 		DrawTexture(cloud4, cloudX[3], 100, RAYWHITE);
+		updateClouds(cloudX, GetMonitorWidth(monitor));
 
 		DrawTexture(bird, 100, birdPosY, RAYWHITE);
-
-		updateClouds(cloudX, GetMonitorWidth(monitor));
 
 		__asm {
 			MOV eax, birdPosY
