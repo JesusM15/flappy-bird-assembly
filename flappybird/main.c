@@ -119,29 +119,73 @@ void updateTubo(tubo arr[], int monitorWidth) {
 // ver si el pajaro choco con un tubo pero no esta terminado
 int verificarChoqueTubo(tubo arr[], Bird bird) {
 	int bandera = 0;
-	long aux = bird.posX;
-	int contador = 0;
-	_asm {
-		mov ecx, 8
-		mov contador, 0
-		ciclo:
-			mov eax, arr
-			mov edx, contador
-			imul edx,16
-			add eax, edx
-			mov ebx, aux
-			cmp [eax], ebx 
-			je fin
-			inc contador
-		loop ciclo
-		jmp terminar
-		fin:
-			mov bandera,1
-		terminar:
-			nop
+	tubo alto;
+	alto = arr[obtenerTuboAlto(arr, bird)];
+	tubo bajo;
+	bajo = arr[obtenerTuboBajo(arr, bird)];
+
+	// checar colision con tubo alto
+	if ((bird.posX / 2 + bird.width) == alto.x && 
+		bird.posY < (alto.y + alto.height)) {
+		bandera = 1; 
+	} 
+
+	// checar colision tubo bajo
+	if ((bird.posX / 2 + bird.width) == bajo.x  && (bird.posY) > (bajo.y)) {
+		bandera = 1;
 	}
+
+	// checar colision vertical
+	if ((bird.posX / 2 + bird.width) >= alto.x && (bird.posX) < (alto.x + alto.width) &&
+		((bird.posY + bird.height / 2) < (alto.height) || (bird.posY + bird.height - 20) > bajo.y) 
+		) {
+		bandera = 1; 
+	}
+
 	return bandera;
 }
+
+char* scoreToString(int score) {
+	char scoreStringify[20] = {0};
+	__asm {
+		MOV eax, score
+		MOV ebx, 10
+		LEA esi, scoreStringify
+		convertir_char:
+			MOV edx, 0
+			DIV ebx
+			MOV ecx, edx
+			ADD ecx, '0'
+			MOV [ esi ], cl
+
+			INC esi
+			CMP eax, 0 
+		JNE convertir_char
+		ADD [ esi ], 0
+	}
+	return scoreStringify;
+}
+
+int obtenerTuboAlto(tubo tubos[], Bird bird) {
+	int closest = 0;
+	for (int i = 0; i < 8; i++) {
+		if (tubos[i].x <= tubos[closest].x && tubos[i].y == 0) {
+			closest = i;
+		}
+	}
+	return closest;
+}
+
+int obtenerTuboBajo(tubo tubos[], Bird bird) {
+	int closest = 0;
+	for (int i = 0; i < 8; i++) {
+		if (tubos[i].x <= tubos[closest].x && tubos[i].y != 0) {
+			closest = i;
+		}
+	}
+	return closest;
+}
+
 int main() {
 	int contador = 0;
 	tubo arreglo[8] = {0};
@@ -155,7 +199,7 @@ int main() {
 	Texture2D cloud3 = LoadTexture("debug/cloud.png");
 	Texture2D cloud4 = LoadTexture("debug/cloud.png");
 	Texture2D cloud5 = LoadTexture("debug/cloud.png");
-	Texture2D floor = LoadTexture("debug/floor.jpg");
+	Texture2D floor = LoadTexture("debug/floor.png");
 	floor.height = 100;
 	floor.width = GetMonitorWidth(monitor);
 
@@ -172,7 +216,7 @@ int main() {
 
 	int cloudX[] = { 100, 600, 1000, 1400 };
 	int gameover = 0; 
-	int points = 0;
+	int score = 0;
 	int floorYPosition = 0;
 
 	int monitorHeight = GetMonitorHeight(monitor);
@@ -184,14 +228,16 @@ int main() {
 		SUB [ eax ], edx
 	}
 
-	tubo aux1 = crearTubo(arreglo, 0, 700, 0, 200, 400);
-	tubo aux2 = crearTubo(arreglo, 1, 700, GetMonitorHeight(monitor) - 400, 200, 400);
-	tubo aux3 = crearTubo(arreglo, 4, 1400, 0, 200, 300);
-	tubo aux4 = crearTubo(arreglo, 5, 1400, GetMonitorHeight(monitor) - 500, 200, 800);
-	tubo aux5 = crearTubo(arreglo, 2, 2100, 0, 200, 600);
-	tubo aux6 = crearTubo(arreglo, 3, 2100, GetMonitorHeight(monitor) - 200, 200, 400);
-	tubo aux7 = crearTubo(arreglo, 6, 2800, 0, 200, 400);
-	tubo aux8 = crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
+	crearTubo(arreglo, 0, 700, 0, 200, 400);
+	crearTubo(arreglo, 1, 700, GetMonitorHeight(monitor) - 400, 200, 400);
+	crearTubo(arreglo, 4, 1400, 0, 200, 300);
+	crearTubo(arreglo, 5, 1400, GetMonitorHeight(monitor) - 500, 200, 800);
+	crearTubo(arreglo, 2, 2100, 0, 200, 600);
+	crearTubo(arreglo, 3, 2100, GetMonitorHeight(monitor) - 200, 200, 400);
+	crearTubo(arreglo, 6, 2800, 0, 200, 400);
+	crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
+
+	
 	while (!WindowShouldClose()) {
 		BeginDrawing();
 
@@ -214,7 +260,6 @@ int main() {
 		DrawTexture(cloud4, cloudX[3], 100, RAYWHITE);
 		updateClouds(cloudX, GetMonitorWidth(monitor));
 		//DrawTextureRe(sprite, source, (Vector2) { bird.posX,  bird.posY }, RAYWHITE);
-		DrawTexture(sprite, bird.posX, bird.posY, RAYWHITE);
 		DrawRectangle(arreglo[0].x, arreglo[0].y, arreglo[0].width, arreglo[0].height, DARKGREEN);
 		DrawRectangle(arreglo[1].x, arreglo[1].y, arreglo[1].width, arreglo[1].height, DARKGREEN);
 		DrawRectangle(arreglo[2].x, arreglo[2].y, arreglo[2].width, arreglo[2].height, DARKGREEN);
@@ -223,7 +268,12 @@ int main() {
 		DrawRectangle(arreglo[5].x, arreglo[5].y, arreglo[5].width, arreglo[5].height, DARKGREEN);
 		DrawRectangle(arreglo[6].x, arreglo[6].y, arreglo[6].width, arreglo[6].height, DARKGREEN);
 		DrawRectangle(arreglo[7].x, arreglo[7].y, arreglo[7].width, arreglo[7].height, DARKGREEN);
+		//DrawText(scoreToString(score), GetMonitorWidth(monitor) / 2, GetMonitorHeight(monitor) / 2, FONT_DEFAULT, WHITE);
+
+		DrawTexture(sprite, bird.posX, bird.posY, RAYWHITE);
 		DrawTexture(floor, 0, floorYPosition, RAYWHITE);
+
+		DrawRectangleLines(bird.posX, bird.posY, bird.width, bird.height, GREEN);
 		__asm {
 			LEA eax, bird.posY
 			MOV ebx, [ eax ]
