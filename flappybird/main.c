@@ -143,6 +143,7 @@ int verificarChoqueTubo(tubo arr[], Bird bird) {
 
 		fin_first_condition:
 		MOV eax, bird.posX
+		ADD eax, 20
 		MOV ebx, alto.x
 		ADD ebx, alto.width
 		
@@ -193,19 +194,24 @@ int verificarChoqueTubo(tubo arr[], Bird bird) {
 			nop
 	}
 
-	// checar colision vertical
-	//if (flag1 &&
-	//	(topColision || bottomColision) 
-	//	) {
-	//	bandera = 1; 
-	//}
-
 	return bandera;
 }
 
-void scoreToString(int score, char scoreString[]) {
+//if (currentIndex != prevTubeIndex) {
+//	tubo tuboAlto = arreglo[currentIndex];
+
+//	if (bird.posX > (tuboAlto.x + tuboAlto.width - 10)) {
+//		prevTubeIndex = currentIndex;
+//		score = score + 1;
+//	}
+//}
+
+char* scoreToString(int score) {
+	static char scoreString[50] = { 0 };
+	int contador = 0;
 	__asm {
-		MOV eax, score
+		LEA ebx, score
+		MOV eax, [ ebx ]
 		MOV ebx, 10
 		LEA esi, scoreString
 		convertir_char:
@@ -213,14 +219,26 @@ void scoreToString(int score, char scoreString[]) {
 			DIV ebx
 			MOV ecx, edx
 			ADD ecx, '0'
-			MOV [ esi ], cl
+			PUSH ecx
+			//MOV [ esi ], cl
 
-			ADD esi, 4
+			INC contador
+			//INC esi
 			CMP eax, 0 
 		JNE convertir_char
-		ADD [ esi ], 0
+
+		MOV ecx, contador
+
+		agregar_char:
+			MOV edx, 0
+			POP edx
+			MOV [ esi ], dl
+			INC esi
+		LOOP agregar_char
+
+		MOV [ esi ], 0
 	}
-	return;
+	return scoreString;
 }
 
 int obtenerTuboAlto(tubo tubos[], Bird bird) {
@@ -244,10 +262,15 @@ int obtenerTuboBajo(tubo tubos[], Bird bird) {
 }
 
 int main() {
-	int contador = 0;
 	tubo arreglo[8] = {0};
 	int monitor = GetCurrentMonitor();
 	InitWindow(GetMonitorWidth(monitor), GetMonitorHeight(monitor), "Flappy Bird");
+	// audio
+	InitAudioDevice();
+
+	Sound jumpSound = LoadSound("debug/jump_effect.mp3");
+	Sound pointSound = LoadSound("debug/point_effect.mp3");
+	Sound hitSound = LoadSound("debug/hit_effect.mp3");
 
 	// texturas
 	Texture2D sprite = LoadTexture("debug/bird.png");
@@ -274,8 +297,11 @@ int main() {
 	int cloudX[] = { 100, 600, 1000, 1400 };
 	int gameover = 0; 
 	int score = 0;
-	char scoreString[30] = { 0 };
 	int floorYPosition = 0;
+	int colisionWithTube = 0;
+	int prevTubeIndex = -1;
+	int currentIndex = 0;
+	int pointGifted = 0;
 
 	int monitorHeight = GetMonitorHeight(monitor);
 	__asm {
@@ -295,23 +321,59 @@ int main() {
 	crearTubo(arreglo, 6, 2800, 0, 200, 400);
 	crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
 
-	
 	while (!WindowShouldClose()) {
 		BeginDrawing();
 
 		ClearBackground(SKYBLUE);
-		scoreToString(score, scoreString);
 		gameover = checkColision(bird, floorYPosition);
+		colisionWithTube = verificarChoqueTubo(arreglo, bird);
 		__asm {
 			MOV eax, gameover
+			OR eax, colisionWithTube
 			CMP eax, 0
 			JE while_continue
 		}
+			SetSoundPitch(hitSound, 2.0f);
+			PlaySound(hitSound);
+			WaitTime(0.5f);
 			break;
 		__asm{
 			while_continue:
 				NOP
 		}
+
+		currentIndex = obtenerTuboAlto(arreglo, bird);
+		__asm {
+			MOV eax, currentIndex
+			CMP eax, prevTubeIndex
+			JE continue_checking
+			JNE check_if_get_point
+
+			check_if_get_point:
+				LEA ebx, arreglo
+				MOV ecx, eax
+				shl ecx, 4
+				add ebx, ecx
+
+				MOV edx, [ ebx ]
+				ADD edx, [ ebx + 8 ]
+				SUB edx, 4
+
+				CMP bird.posX, edx
+				JG give_point
+				JMP continue_checking
+				give_point:
+					INC score
+					MOV eax, currentIndex
+					MOV prevTubeIndex, eax
+		}
+		SetSoundPitch(pointSound, 2.0f);
+		PlaySound(pointSound);
+		__asm {
+			continue_checking:
+				NOP
+		}
+				
 		DrawTexture(cloud1, cloudX[0], 90, RAYWHITE);
 		DrawTexture(cloud2, cloudX[1], 70, RAYWHITE);
 		DrawTexture(cloud3, cloudX[2], 120, RAYWHITE);
@@ -326,10 +388,11 @@ int main() {
 		DrawRectangle(arreglo[5].x, arreglo[5].y, arreglo[5].width, arreglo[5].height, DARKGREEN);
 		DrawRectangle(arreglo[6].x, arreglo[6].y, arreglo[6].width, arreglo[6].height, DARKGREEN);
 		DrawRectangle(arreglo[7].x, arreglo[7].y, arreglo[7].width, arreglo[7].height, DARKGREEN);
-		DrawText(scoreString, GetMonitorWidth(monitor) / 2, GetMonitorHeight(monitor) / 2, FONT_DEFAULT, WHITE);
 
 		DrawTexture(sprite, bird.posX, bird.posY, RAYWHITE);
 		DrawTexture(floor, 0, floorYPosition, RAYWHITE);
+
+		DrawText(scoreToString(score), GetMonitorWidth(monitor) / 2, GetMonitorHeight(monitor) / 2, 48, WHITE);
 
 		DrawRectangleLines(bird.posX, bird.posY, bird.width, bird.height, GREEN);
 		__asm {
@@ -342,6 +405,8 @@ int main() {
 		}
 
 		if (IsKeyPressed(KEY_SPACE)) {
+			SetSoundPitch(jumpSound, 2.0f);
+			PlaySound(jumpSound);
 			__asm {
 				LEA eax, bird.posY
 				MOV ebx, [ eax ]
@@ -350,14 +415,13 @@ int main() {
 			}
 		}
 		updateTubo(arreglo, GetMonitorWidth(monitor));
-		//solo para ver si jala la funcion (no jalo)
-		int terminar = verificarChoqueTubo(arreglo,bird);
-		if (terminar == 1) {
-			break;
-		}
 		EndDrawing();
 	}
 
+	UnloadSound(jumpSound);
+	UnloadSound(hitSound);
+	UnloadSound(pointSound);
+	CloseAudioDevice();
 	CloseWindow();
 	
 	return 0;
