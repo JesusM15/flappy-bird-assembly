@@ -124,33 +124,90 @@ int verificarChoqueTubo(tubo arr[], Bird bird) {
 	tubo bajo;
 	bajo = arr[obtenerTuboBajo(arr, bird)];
 
-	// checar colision con tubo alto
-	if ((bird.posX / 2 + bird.width) == alto.x && 
-		bird.posY < (alto.y + alto.height)) {
-		bandera = 1; 
-	} 
+	int flag1 = 0;
+	int topColision = 0;
+	int bottomColision = 0;
+	__asm {
+		MOV eax, bird.posX
+		MOV edx, 0
+		MOV ebx, 2
+		DIV ebx
+		MOV ebx, bird.width
+		ADD eax, ebx
 
-	// checar colision tubo bajo
-	if ((bird.posX / 2 + bird.width) == bajo.x  && (bird.posY) > (bajo.y)) {
-		bandera = 1;
+		CMP eax, alto.x
+		JGE set_flag
+		JMP fin_first_condition
+		set_flag: 
+			MOV flag1, 1
+
+		fin_first_condition:
+		MOV eax, bird.posX
+		MOV ebx, alto.x
+		ADD ebx, alto.width
+		
+		CMP eax, ebx
+		JG unset_flag
+		JMP check_top_colision
+		unset_flag:
+			MOV flag1, 0
+
+		check_top_colision:
+		MOV eax, bird.height
+		MOV ebx, 2
+		DIV ebx
+		ADD eax, bird.posY
+
+		CMP  alto.height, eax
+		JG activate_top_colision
+		MOV topColision, 0
+		JMP check_bottom_colision
+		activate_top_colision:
+			MOV topColision, 1
+
+		check_bottom_colision:
+		MOV eax, bird.posY
+		ADD eax, bird.height
+		SUB eax, 20
+
+		CMP eax, bajo.y
+		JG activate_bottom_colision
+		MOV bottomColision, 0
+		JMP end_checks
+		activate_bottom_colision:
+			MOV bottomColision, 1
+
+		end_checks:
+		
+		MOV eax, topColision
+		OR eax, bottomColision
+		AND eax, flag1
+		
+		CMP eax, 1
+		JE activate_colision
+		MOV bandera, 0
+		JMP fin_de_condiciones
+		activate_colision:
+			MOV bandera, 1
+		fin_de_condiciones:
+			nop
 	}
 
 	// checar colision vertical
-	if ((bird.posX / 2 + bird.width) >= alto.x && (bird.posX) < (alto.x + alto.width) &&
-		((bird.posY + bird.height / 2) < (alto.height) || (bird.posY + bird.height - 20) > bajo.y) 
-		) {
-		bandera = 1; 
-	}
+	//if (flag1 &&
+	//	(topColision || bottomColision) 
+	//	) {
+	//	bandera = 1; 
+	//}
 
 	return bandera;
 }
 
-char* scoreToString(int score) {
-	char scoreStringify[20] = {0};
+void scoreToString(int score, char scoreString[]) {
 	__asm {
 		MOV eax, score
 		MOV ebx, 10
-		LEA esi, scoreStringify
+		LEA esi, scoreString
 		convertir_char:
 			MOV edx, 0
 			DIV ebx
@@ -158,12 +215,12 @@ char* scoreToString(int score) {
 			ADD ecx, '0'
 			MOV [ esi ], cl
 
-			INC esi
+			ADD esi, 4
 			CMP eax, 0 
 		JNE convertir_char
 		ADD [ esi ], 0
 	}
-	return scoreStringify;
+	return;
 }
 
 int obtenerTuboAlto(tubo tubos[], Bird bird) {
@@ -217,6 +274,7 @@ int main() {
 	int cloudX[] = { 100, 600, 1000, 1400 };
 	int gameover = 0; 
 	int score = 0;
+	char scoreString[30] = { 0 };
 	int floorYPosition = 0;
 
 	int monitorHeight = GetMonitorHeight(monitor);
@@ -242,7 +300,7 @@ int main() {
 		BeginDrawing();
 
 		ClearBackground(SKYBLUE);
-
+		scoreToString(score, scoreString);
 		gameover = checkColision(bird, floorYPosition);
 		__asm {
 			MOV eax, gameover
@@ -268,7 +326,7 @@ int main() {
 		DrawRectangle(arreglo[5].x, arreglo[5].y, arreglo[5].width, arreglo[5].height, DARKGREEN);
 		DrawRectangle(arreglo[6].x, arreglo[6].y, arreglo[6].width, arreglo[6].height, DARKGREEN);
 		DrawRectangle(arreglo[7].x, arreglo[7].y, arreglo[7].width, arreglo[7].height, DARKGREEN);
-		//DrawText(scoreToString(score), GetMonitorWidth(monitor) / 2, GetMonitorHeight(monitor) / 2, FONT_DEFAULT, WHITE);
+		DrawText(scoreString, GetMonitorWidth(monitor) / 2, GetMonitorHeight(monitor) / 2, FONT_DEFAULT, WHITE);
 
 		DrawTexture(sprite, bird.posX, bird.posY, RAYWHITE);
 		DrawTexture(floor, 0, floorYPosition, RAYWHITE);
