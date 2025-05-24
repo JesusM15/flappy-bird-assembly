@@ -88,7 +88,7 @@ tubo crearTubo(tubo arr[],int pos,int x,int y,int width, int height) {
 	}
 	arr[pos] = k;
 }
-void updateTubo(tubo arr[], int monitorWidth) {
+int updateTubo(tubo arr[], int monitorWidth, int restado) {
 	int size = sizeof(tubo);
 	int aux = 0;
 	int monitor = monitorWidth;
@@ -100,10 +100,10 @@ void updateTubo(tubo arr[], int monitorWidth) {
 			mov edx, aux
 			imul edx,16
 			add eax, edx
-			mov esi,-120
+			mov esi,-110
 			cmp [eax], esi
-			je continuar
-			mov edx,4
+			jle continuar
+			mov edx, restado
 			sub[eax],edx
 			jmp fin
 				continuar:
@@ -115,6 +115,7 @@ void updateTubo(tubo arr[], int monitorWidth) {
 			inc aux
 		loop ciclo
 	}
+	return restado;
 }
 // ver si el pajaro choco con un tubo pero no esta terminado
 int verificarChoqueTubo(tubo arr[], Bird bird) {
@@ -243,25 +244,100 @@ char* scoreToString(int score) {
 
 int obtenerTuboAlto(tubo tubos[], Bird bird) {
 	int closest = 0;
-	for (int i = 0; i < 8; i++) {
+	int aux = 0;
+	_asm {
+		mov ecx, 8
+		mov aux, 0
+		ciclo:
+		mov eax, tubos
+			mov edx, aux
+			imul edx, 16
+			add eax, edx
+			mov ebx, tubos
+			mov edx, closest
+			imul edx, 16
+			add ebx, edx
+			mov edx, [eax]
+			cmp edx, [ebx]
+				jle continuar6
+					jmp continuarCiclo
+					continuar6 :
+				nop
+					mov eax, tubos
+					mov edx, aux
+					imul edx, 16
+					add eax, edx
+					mov ebx, 4
+					add eax, ebx
+					mov edx, [eax]
+					cmp edx, 0
+						je cambiarClosest
+						jmp continuarCiclo
+						cambiarClosest :
+					mov ebx, aux
+						mov closest, ebx
+						continuarCiclo :
+					nop
+						inc aux
+						loop ciclo
+	}
+	/*for (int i = 0; i < 8; i++) {
 		if (tubos[i].x <= tubos[closest].x && tubos[i].y == 0) {
 			closest = i;
 		}
-	}
+	}*/
 	return closest;
 }
 
 int obtenerTuboBajo(tubo tubos[], Bird bird) {
 	int closest = 0;
-	for (int i = 0; i < 8; i++) {
+	int aux = 0;
+	_asm {
+		mov ecx,8
+		mov aux,0
+		ciclo:
+		mov eax, tubos
+		mov edx, aux
+		imul edx,16
+		add eax,edx
+		mov ebx, tubos
+		mov edx, closest
+		imul edx,16
+		add ebx, edx
+		mov edx, [eax]
+		cmp edx, [ebx]
+		jle continuar6
+		jmp continuarCiclo
+		continuar6:
+			nop
+		mov eax, tubos
+		mov edx, aux
+		imul edx,16
+		add eax, edx
+		mov ebx, 4
+		add eax, ebx
+		mov edx, [eax]
+		cmp edx, 0
+		jne cambiarClosest
+		jmp continuarCiclo
+		cambiarClosest:
+			mov ebx, aux
+			mov closest, ebx
+		continuarCiclo:
+			nop
+		inc aux
+		loop ciclo
+	}
+	/*for (int i = 0; i < 8; i++) {
 		if (tubos[i].x <= tubos[closest].x && tubos[i].y != 0) {
 			closest = i;
 		}
-	}
+	}*/
 	return closest;
 }
 
 int main() {
+	int factorResta = 4;
 	tubo arreglo[8] = {0};
 	int monitor = GetCurrentMonitor();
 	InitWindow(GetMonitorWidth(monitor), GetMonitorHeight(monitor), "Flappy Bird");
@@ -414,10 +490,54 @@ int main() {
 				MOV [ eax ], ebx
 			}
 		}
-		updateTubo(arreglo, GetMonitorWidth(monitor));
+		_asm {
+			// aumenta la velocidad del 10 al 20 restando 6
+			mov eax, score
+			cmp eax, 10
+			jge continuar
+			jmp terminar2
+			continuar:
+				nop
+			cmp eax, 20
+			jb cambiar
+			jmp terminar2
+			cambiar:
+				mov ecx, 6
+				mov factorResta, ecx
+				jmp fin3
+			terminar2:
+				nop
+			//del 20 al 32 restando 8
+			cmp eax,20
+			jge continuar2
+			jmp terminar3
+			continuar2:
+				nop
+			cmp eax, 32
+			jb cambiar2
+			jmp terminar3
+			cambiar2:
+				mov ecx,8
+				mov factorResta, ecx
+				jmp fin3
+			terminar3:
+				nop
+			// de 50 en adelante se le restara 9
+			cmp eax, 50
+			jg cambiar3
+			jmp fin3
+			cambiar3:
+				mov ecx,9
+				mov factorResta,ecx
+		}
+		_asm {
+			fin3:
+				nop
+		}
+		int x = updateTubo(arreglo, GetMonitorWidth(monitor),factorResta);
+		factorResta = x;
 		EndDrawing();
 	}
-
 	UnloadSound(jumpSound);
 	UnloadSound(hitSound);
 	UnloadSound(pointSound);
