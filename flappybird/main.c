@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "raylib.h"
 #include <direct.h>           // _getcwd
-
+#define MAX_INPUT_CHARS 64
 typedef struct {
 	int posX;
 	int posY;
@@ -15,7 +15,10 @@ typedef struct {
 	int width;
 	int height;
 }tubo;
-
+typedef struct {
+	char name[MAX_INPUT_CHARS];
+	int score;
+}Player;   
 void updateClouds(int cloudsX[], int monitorWidth) {
 	// aqui habia problemad de overflow
 
@@ -395,7 +398,9 @@ int main() {
 		MOV edx, floor.height
 		SUB [ eax ], edx
 	}
-
+	char name[MAX_INPUT_CHARS + 1] = "\0";  
+	int letterCount = 0;
+	Player ranking[3] = { 0 };
 	while (!WindowShouldClose()) {
 
 		__asm {
@@ -424,13 +429,34 @@ int main() {
 		crearTubo(arreglo, 6, 2800, 0, 200, 400);
 		crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
 		__asm{
-
 			start_draw:
 				nop
 		}
-		BeginDrawing();
+		int key = GetCharPressed();
 		
+		while (key > 0)
+		{
+			if ((key >= 32) && (key <= 125) && (letterCount < MAX_INPUT_CHARS))
+			{
+				if (key != KEY_SPACE) {
+					name[letterCount] = (char)key;
+					name[letterCount + 1] = '\0';
+					letterCount++;
+				}
+			}
+
+			key = GetCharPressed();
+		}
+		if (IsKeyPressed(KEY_BACKSPACE))
+		{
+			letterCount--;
+			if (letterCount < 0) letterCount = 0;
+			name[letterCount] = '\0';
+		}
+		BeginDrawing();
 		ClearBackground(SKYBLUE);
+		DrawText("Introduce una cadena (usa BACKSPACE para borrar):", 20, 20, 20, DARKGRAY);
+		DrawText(name, 100, 100, 40, MAROON);
 		gameover = checkColision(bird, floorYPosition);
 		colisionWithTube = verificarChoqueTubo(arreglo, bird);
 		__asm {
@@ -509,6 +535,22 @@ int main() {
 		}
 		__asm {
 			mov juegoIniciado, 1
+		}
+		__asm {
+			lea eax, name
+			mov ecx, 3
+			ciclo:
+				mov edx,[eax]
+				cmp dl, 0
+				je caracterNuloEncontrado
+				add eax,1
+			loop ciclo 
+			jmp conclusion
+			caracterNuloEncontrado:
+				mov juegoIniciado,0
+				jmp terminarDibujo
+			conclusion:
+				nop
 		}
 		__asm {
 			LEA eax, bird.posY
