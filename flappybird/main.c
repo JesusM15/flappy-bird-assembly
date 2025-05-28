@@ -337,6 +337,7 @@ int obtenerTuboBajo(tubo tubos[], Bird bird) {
 }
 
 int main() {
+	int juegoIniciado=0;
 	int factorResta = 4;
 	tubo arreglo[8] = {0};
 	int monitor = GetCurrentMonitor();
@@ -385,6 +386,7 @@ int main() {
 	crearTubo(arreglo, 3, 2100, GetMonitorHeight(monitor) - 200, 200, 400);
 	crearTubo(arreglo, 6, 2800, 0, 200, 400);
 	crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
+
 	int monitorHeight = GetMonitorHeight(monitor);
 	__asm {
 		LEA eax, floorYPosition
@@ -440,7 +442,6 @@ int main() {
 			__asm {
 				JMP reset_game
 			}
-
 			break;
 		__asm{
 			while_continue:
@@ -493,13 +494,20 @@ int main() {
 		DrawRectangle(arreglo[5].x, arreglo[5].y, arreglo[5].width, arreglo[5].height, DARKGREEN);
 		DrawRectangle(arreglo[6].x, arreglo[6].y, arreglo[6].width, arreglo[6].height, DARKGREEN);
 		DrawRectangle(arreglo[7].x, arreglo[7].y, arreglo[7].width, arreglo[7].height, DARKGREEN);
-
 		DrawTexture(sprite, bird.posX, bird.posY, RAYWHITE);
 		DrawTexture(floor, 0, floorYPosition, RAYWHITE);
 
 		DrawText(scoreToString(score), GetMonitorWidth(monitor) / 2, GetMonitorHeight(monitor) / 2, 48, WHITE);
 
 		DrawRectangleLines(bird.posX, bird.posY, bird.width, bird.height, GREEN);
+		while (IsKeyPressed(KEY_SPACE) == false && !juegoIniciado) {
+			__asm {
+				jmp terminarDibujo
+			}
+		}
+		__asm {
+			mov juegoIniciado, 1
+		}
 		__asm {
 			LEA eax, bird.posY
 			MOV ebx, [ eax ]
@@ -508,7 +516,7 @@ int main() {
 			ADD ebx, 3; gravedad
 			MOV [ eax ], ebx
 		}
-
+		
 		if (IsKeyPressed(KEY_SPACE)) {
 			SetSoundPitch(jumpSound, 2.0f);
 			PlaySound(jumpSound);
@@ -565,6 +573,10 @@ int main() {
 		}
 		int x = updateTubo(arreglo, GetMonitorWidth(monitor),factorResta);
 		factorResta = x;
+		__asm {
+		terminarDibujo:
+			nop
+		}
 		EndDrawing();
 	}
 	UnloadSound(jumpSound);
