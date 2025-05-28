@@ -377,8 +377,14 @@ int main() {
 	int colisionWithTube = 0;
 	int prevTubeIndex = -1;
 	int currentIndex = 0;
-	int pointGifted = 0;
-
+	crearTubo(arreglo, 0, 700, 0, 200, 400);
+	crearTubo(arreglo, 1, 700, GetMonitorHeight(monitor) - 400, 200, 400);
+	crearTubo(arreglo, 4, 1400, 0, 200, 300);
+	crearTubo(arreglo, 5, 1400, GetMonitorHeight(monitor) - 500, 200, 800);
+	crearTubo(arreglo, 2, 2100, 0, 200, 600);
+	crearTubo(arreglo, 3, 2100, GetMonitorHeight(monitor) - 200, 200, 400);
+	crearTubo(arreglo, 6, 2800, 0, 200, 400);
+	crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
 	int monitorHeight = GetMonitorHeight(monitor);
 	__asm {
 		LEA eax, floorYPosition
@@ -388,18 +394,38 @@ int main() {
 		SUB [ eax ], edx
 	}
 
-	crearTubo(arreglo, 0, 700, 0, 200, 400);
-	crearTubo(arreglo, 1, 700, GetMonitorHeight(monitor) - 400, 200, 400);
-	crearTubo(arreglo, 4, 1400, 0, 200, 300);
-	crearTubo(arreglo, 5, 1400, GetMonitorHeight(monitor) - 500, 200, 800);
-	crearTubo(arreglo, 2, 2100, 0, 200, 600);
-	crearTubo(arreglo, 3, 2100, GetMonitorHeight(monitor) - 200, 200, 400);
-	crearTubo(arreglo, 6, 2800, 0, 200, 400);
-	crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
-
 	while (!WindowShouldClose()) {
-		BeginDrawing();
 
+		__asm {
+			JMP start_draw
+			reset_game:
+			MOV gameover, 0
+				MOV score, 0
+				MOV colisionWithTube, 0
+				MOV prevTubeIndex, -1
+				MOV currentIndex, 0
+				MOV edx, 0
+				MOV eax, monitorHeight
+				MOV ebx, 2
+				DIV ebx
+				MOV bird.posY, eax
+
+		}
+		crearTubo(arreglo, 0, 700, 0, 200, 400);
+		crearTubo(arreglo, 1, 700, GetMonitorHeight(monitor) - 400, 200, 400);
+		crearTubo(arreglo, 4, 1400, 0, 200, 300);
+		crearTubo(arreglo, 5, 1400, GetMonitorHeight(monitor) - 500, 200, 800);
+		crearTubo(arreglo, 2, 2100, 0, 200, 600);
+		crearTubo(arreglo, 3, 2100, GetMonitorHeight(monitor) - 200, 200, 400);
+		crearTubo(arreglo, 6, 2800, 0, 200, 400);
+		crearTubo(arreglo, 7, 2800, GetMonitorHeight(monitor) - 400, 200, 400);
+		__asm{
+
+			start_draw:
+				nop
+		}
+		BeginDrawing();
+		
 		ClearBackground(SKYBLUE);
 		gameover = checkColision(bird, floorYPosition);
 		colisionWithTube = verificarChoqueTubo(arreglo, bird);
@@ -411,7 +437,10 @@ int main() {
 		}
 			SetSoundPitch(hitSound, 2.0f);
 			PlaySound(hitSound);
-			WaitTime(0.5f);
+			__asm {
+				JMP reset_game
+			}
+
 			break;
 		__asm{
 			while_continue:
