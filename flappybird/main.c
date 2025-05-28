@@ -401,7 +401,8 @@ int main() {
 		__asm {
 			JMP start_draw
 			reset_game:
-			MOV gameover, 0
+				MOV juegoIniciado, 0
+				MOV gameover, 0
 				MOV score, 0
 				MOV colisionWithTube, 0
 				MOV prevTubeIndex, -1
@@ -411,6 +412,7 @@ int main() {
 				MOV ebx, 2
 				DIV ebx
 				MOV bird.posY, eax
+
 
 		}
 		crearTubo(arreglo, 0, 700, 0, 200, 400);
