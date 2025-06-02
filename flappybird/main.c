@@ -338,11 +338,45 @@ int obtenerTuboBajo(tubo tubos[], Bird bird) {
 	}*/
 	return closest;
 }
-
+void guardarJugador(Player j[], int puntuacion,int pos,char nombre[]) {
+	int tamano = sizeof(Player);
+	__asm {
+		mov eax, j
+		mov ebx, tamano
+		imul ebx,pos
+		add eax, ebx
+		mov edx, nombre
+		recorrerString:
+			cmp [edx],0
+			je salirAhora
+			mov cl,[edx]
+			mov bl, cl
+			mov [eax], bl
+			add edx,1
+			add eax,1
+			jmp recorrerString
+		salirAhora:
+			nop
+		add eax,1
+		mov [eax],'\0'
+		mov eax, j
+		mov ebx, tamano
+		imul ebx, pos
+		add eax, ebx
+		add eax, 64
+		mov ecx, puntuacion
+		mov [eax], ecx
+	}
+	printf("%d", j[0].score);
+}
 int main() {
+	int mostrarScore = 0;
+	int banderaTexto = 0;
 	int juegoIniciado=0;
 	int factorResta = 4;
+	int numJugador = 0;
 	tubo arreglo[8] = {0};
+	Player jugadores[8] = {0};
 	int monitor = GetCurrentMonitor();
 	InitWindow(GetMonitorWidth(monitor), GetMonitorHeight(monitor), "Flappy Bird");
 	// audio
@@ -351,7 +385,6 @@ int main() {
 	Sound jumpSound = LoadSound("debug/jump_effect.mp3");
 	Sound pointSound = LoadSound("debug/point_effect.mp3");
 	Sound hitSound = LoadSound("debug/hit_effect.mp3");
-
 	// texturas
 	Texture2D sprite = LoadTexture("debug/bird.png");
 	Texture2D cloud1 = LoadTexture("debug/cloud.png");
@@ -417,8 +450,6 @@ int main() {
 				MOV ebx, 2
 				DIV ebx
 				MOV bird.posY, eax
-
-
 		}
 		crearTubo(arreglo, 0, 700, 0, 200, 400);
 		crearTubo(arreglo, 1, 700, GetMonitorHeight(monitor) - 400, 200, 400);
@@ -434,7 +465,7 @@ int main() {
 		}
 		int key = GetCharPressed();
 		
-		while (key > 0)
+		while (key > 0||(sizeof(name)<0))
 		{
 			if ((key >= 32) && (key <= 125) && (letterCount < MAX_INPUT_CHARS))
 			{
@@ -442,6 +473,11 @@ int main() {
 					name[letterCount] = (char)key;
 					name[letterCount + 1] = '\0';
 					letterCount++;
+				}
+				else {
+					__asm {
+						mov mostrarScore, 0
+					}
 				}
 			}
 
@@ -455,8 +491,17 @@ int main() {
 		}
 		BeginDrawing();
 		ClearBackground(SKYBLUE);
+		__asm {
+			mov ecx,banderaTexto
+			cmp ecx,1
+			je saltarTexto
+		}
 		DrawText("Introduce una cadena (usa BACKSPACE para borrar):", 20, 20, 20, DARKGRAY);
 		DrawText(name, 100, 100, 40, MAROON);
+		__asm{
+			saltarTexto:
+				nop
+		}
 		gameover = checkColision(bird, floorYPosition);
 		colisionWithTube = verificarChoqueTubo(arreglo, bird);
 		__asm {
@@ -464,9 +509,27 @@ int main() {
 			OR eax, colisionWithTube
 			CMP eax, 0
 			JE while_continue
+			mov banderaTexto,0
+			mov mostrarScore,1
+		}
+		guardarJugador(jugadores, score, numJugador, name);
+		numJugador++;
+		__asm {
+			lea eax, name
+			ciclar:
+				cmp [eax], 0
+				je salirCiclo
+				mov [eax],'\0'
+				add eax,1
+				jmp ciclar
+			salirCiclo:
+				nop
+			mov letterCount,0
 		}
 			SetSoundPitch(hitSound, 2.0f);
 			PlaySound(hitSound);
+			
+
 			__asm {
 				JMP reset_game
 			}
@@ -475,7 +538,6 @@ int main() {
 			while_continue:
 				NOP
 		}
-
 		currentIndex = obtenerTuboAlto(arreglo, bird);
 		__asm {
 			MOV eax, currentIndex
@@ -514,7 +576,7 @@ int main() {
 		DrawTexture(cloud4, cloudX[3], 100, RAYWHITE);
 		updateClouds(cloudX, GetMonitorWidth(monitor));
 		//DrawTextureRe(sprite, source, (Vector2) { bird.posX,  bird.posY }, RAYWHITE);
-		DrawRectangle(arreglo[0].x, arreglo[0].y, arreglo[0].width, arreglo[0].height, DARKGREEN);
+		DrawRectangle(arreglo[0].x, arreglo[0].y, arreglo[0].width,arreglo[0].height, DARKGREEN);
 		DrawRectangle(arreglo[1].x, arreglo[1].y, arreglo[1].width, arreglo[1].height, DARKGREEN);
 		DrawRectangle(arreglo[2].x, arreglo[2].y, arreglo[2].width, arreglo[2].height, DARKGREEN);
 		DrawRectangle(arreglo[3].x, arreglo[3].y, arreglo[3].width, arreglo[3].height, DARKGREEN);
@@ -526,7 +588,32 @@ int main() {
 		DrawTexture(floor, 0, floorYPosition, RAYWHITE);
 
 		DrawText(scoreToString(score), GetMonitorWidth(monitor) / 2, GetMonitorHeight(monitor) / 2, 48, WHITE);
-
+		__asm {
+			mov ecx, mostrarScore
+			cmp ecx, 1
+			jne saltarScore
+		}
+		DrawRectangle(GetMonitorWidth(monitor) / 2-100, GetMonitorHeight(monitor) / 2-300, 700, 600, RED);
+		
+		DrawText("score:", 1130, 250, 50, WHITE);
+		int x2 = 920;
+		int y2 = 320;
+		int rank = 1;
+		int recorrer = 0;
+		for (int i = 0; i < 8; i++) {
+			char pos[3] = {rank+'0','-','\0'};
+			DrawText(pos, x2, y2, 40, WHITE);
+			DrawText(jugadores[recorrer].name, x2+50, y2, 40, WHITE);
+			char aux[2] = { jugadores[recorrer].score + '0','\0' };
+			DrawText(aux, x2+500, y2, 40, WHITE);
+			y2 = y2 + 50;
+			rank = rank + 1;
+			recorrer = recorrer + 1;
+		}
+		__asm {
+		saltarScore:
+			nop
+		}
 		DrawRectangleLines(bird.posX, bird.posY, bird.width, bird.height, GREEN);
 		while (IsKeyPressed(KEY_SPACE) == false && !juegoIniciado) {
 			__asm {
@@ -535,6 +622,7 @@ int main() {
 		}
 		__asm {
 			mov juegoIniciado, 1
+			mov banderaTexto,1
 		}
 		__asm {
 			lea eax, name
