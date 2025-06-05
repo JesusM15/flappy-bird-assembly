@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include <direct.h>           // _getcwd
 #define MAX_INPUT_CHARS 64
+#define MAX_PLAYERS 8
 typedef struct {
 	int posX;
 	int posY;
@@ -340,6 +341,7 @@ int obtenerTuboBajo(tubo tubos[], Bird bird) {
 }
 void guardarJugador(Player j[], int puntuacion,int pos,char nombre[]) {
 	int tamano = sizeof(Player);
+
 	__asm {
 		mov eax, j
 		mov ebx, tamano
@@ -367,16 +369,17 @@ void guardarJugador(Player j[], int puntuacion,int pos,char nombre[]) {
 		mov ecx, puntuacion
 		mov [eax], ecx
 	}
-	printf("%d", j[0].score);
 }
 int main() {
 	int mostrarScore = 0;
-	int banderaTexto = 0;
+	int nombreIntroducido = 0;
 	int juegoIniciado=0;
 	int factorResta = 4;
 	int numJugador = 0;
+	int maxPlayersReached = 0;
+
 	tubo arreglo[8] = {0};
-	Player jugadores[8] = {0};
+	Player players[MAX_PLAYERS] = {0};
 	int monitor = GetCurrentMonitor();
 	InitWindow(GetMonitorWidth(monitor), GetMonitorHeight(monitor), "Flappy Bird");
 	// audio
@@ -410,6 +413,7 @@ int main() {
 	int cloudX[] = { 100, 600, 1000, 1400 };
 	int gameover = 0; 
 	int score = 0;
+	int tmpScore = 0;
 	int floorYPosition = 0;
 	int colisionWithTube = 0;
 	int prevTubeIndex = -1;
@@ -431,6 +435,16 @@ int main() {
 		MOV edx, floor.height
 		SUB [ eax ], edx
 	}
+
+	//configuracion para leadboard
+	int leadboardWidth = 600;
+	int leadboardHeight = 600;
+	int leadboardX = GetMonitorWidth(monitor) / 2 - leadboardWidth / 2;
+	int leadboardY = GetMonitorHeight(monitor) / 2 - leadboardHeight / 2 - 100;
+
+	int inputX = GetMonitorWidth(monitor) / 2 - 40;
+	int inputY = GetMonitorHeight(monitor) / 2 - 40;
+
 	char name[MAX_INPUT_CHARS + 1] = "\0";  
 	int letterCount = 0;
 	Player ranking[3] = { 0 };
@@ -469,7 +483,7 @@ int main() {
 		{
 			if ((key >= 32) && (key <= 125) && (letterCount < MAX_INPUT_CHARS))
 			{
-				if (key != KEY_SPACE) {
+				if (key != KEY_SPACE && key != KEY_ENTER) {
 					name[letterCount] = (char)key;
 					name[letterCount + 1] = '\0';
 					letterCount++;
@@ -483,25 +497,17 @@ int main() {
 
 			key = GetCharPressed();
 		}
+
 		if (IsKeyPressed(KEY_BACKSPACE))
 		{
 			letterCount--;
 			if (letterCount < 0) letterCount = 0;
 			name[letterCount] = '\0';
 		}
+
 		BeginDrawing();
 		ClearBackground(SKYBLUE);
-		__asm {
-			mov ecx,banderaTexto
-			cmp ecx,1
-			je saltarTexto
-		}
-		DrawText("Introduce una cadena (usa BACKSPACE para borrar):", 20, 20, 20, DARKGRAY);
-		DrawText(name, 100, 100, 40, MAROON);
-		__asm{
-			saltarTexto:
-				nop
-		}
+
 		gameover = checkColision(bird, floorYPosition);
 		colisionWithTube = verificarChoqueTubo(arreglo, bird);
 		__asm {
@@ -509,11 +515,194 @@ int main() {
 			OR eax, colisionWithTube
 			CMP eax, 0
 			JE while_continue
-			mov banderaTexto,0
+			mov nombreIntroducido,0
 			mov mostrarScore,1
 		}
-		guardarJugador(jugadores, score, numJugador, name);
+		tmpScore = score;
+		__asm {
+			MOV eax, numJugador
+			CMP eax, MAX_PLAYERS
+			JE activate_max_players_reached
+			add_new_player:
+				nop
+		}
+		guardarJugador(players, score, numJugador, name);
 		numJugador++;
+		__asm {
+			JMP less_than_the_last
+			activate_max_players_reached:
+
+				LEA esi, players
+				
+				MOV ecx, MAX_PLAYERS
+				DEC ecx
+
+				reach_final_player:
+					ADD esi, 68
+				LOOP reach_final_player
+				ADD esi, 64
+				MOV eax, score
+				MOV ebx, [ esi ]
+
+				CMP eax, ebx
+				JG change_for_last
+				JMP less_than_the_last
+				change_for_last:
+					DEC numJugador
+					JMP add_new_player
+				less_than_the_last:
+					nop	
+		}
+
+		Player auxPlayer;
+		auxPlayer.score = 0;
+		for (int i = 0; i < MAX_INPUT_CHARS; i++) {
+			auxPlayer.name[i] = '\0';
+		}
+
+
+		int scoreAAuxiliar = 0, scoreBAuxiliar = 0;
+		int loopExterior = MAX_PLAYERS;
+		int loopInterior = MAX_PLAYERS - 1;
+		__asm {
+			MOV ecx, MAX_PLAYERS
+			MOV loopExterior, ecx
+
+			ciclo_ordenamiento_exterior :
+				MOV ECX, MAX_PLAYERS
+				MOV loopInterior, ecx
+
+				ciclo_ordenamiento_interior :
+					LEA esi, players
+					MOV eax, MAX_PLAYERS
+					SUB eax, loopInterior
+
+					IMUL eax, 68
+					ADD esi, eax
+
+					LEA edi, players
+					MOV eax, MAX_PLAYERS
+					INC eax
+					SUB eax, loopInterior
+					IMUL eax, 68
+					ADD edi, eax
+
+					CMP edi, 0
+					JE final_ordenamiento
+
+					MOV eax, [esi + 64]
+					MOV scoreAAuxiliar, eax
+					MOV eax, [edi + 64]
+					CMP eax, scoreAAuxiliar
+				JG swap_elements
+
+				continue_ordenamiento_loop :
+			DEC loopInterior
+				MOV ecx, loopInterior
+
+				LOOP ciclo_ordenamiento_interior
+				DEC loopExterior
+				MOV ecx, loopExterior
+
+				LOOP ciclo_ordenamiento_exterior
+				JMP final_ordenamiento
+
+				swap_elements :
+					LEA esi, players
+					MOV eax, MAX_PLAYERS
+					SUB eax, loopInterior
+
+					IMUL eax, 68
+					ADD esi, eax
+
+					MOV ecx, 64
+					MOV eax, 0
+
+					LEA ebx, auxPlayer
+
+					MOV ecx, 64
+				copiar_nombre_actual_a_aux:
+					MOV al, [esi]
+					MOV[ebx], al
+					INC esi
+					INC ebx
+
+				LOOP copiar_nombre_actual_a_aux
+
+					LEA esi, players
+					MOV eax, MAX_PLAYERS
+					SUB eax, loopInterior
+
+					IMUL eax, 68
+					ADD esi, eax
+
+					LEA ebx, auxPlayer
+
+					ADD ebx, 64
+					ADD esi, 64
+					;copiar score
+					MOV edx, 0
+					MOV edx, [esi]
+					MOV[ebx], edx
+
+					;copiar siguiente en anterior
+					LEA esi, players
+					MOV eax, MAX_PLAYERS
+					SUB eax, loopInterior
+
+					IMUL eax, 68
+					ADD esi, eax
+
+					LEA edi, players
+					MOV eax, MAX_PLAYERS
+					INC eax
+					SUB eax, loopInterior
+					IMUL eax, 68
+					ADD edi, eax
+
+					MOV ecx, 64
+					copiar_nombre_siguiente_a_anterior:
+						MOV al, [edi]
+						MOV [esi], al
+						INC esi
+						INC edi
+					LOOP copiar_nombre_siguiente_a_anterior
+
+					;copiar score
+					MOV edx, 0
+					MOV edx, [ edi ]
+					MOV[ esi ], edx
+
+					;copiar auxiliar a siguiente
+
+					LEA ebx, auxPlayer
+
+					LEA edi, players
+					MOV eax, MAX_PLAYERS
+					INC eax
+					SUB eax, loopInterior
+					IMUL eax, 68
+					ADD edi, eax
+
+					MOV ecx, 64
+					copiar_nombre_auxiliar_a_siguiente:
+						MOV al, [ebx]
+						MOV [edi], al
+						INC edi
+						INC ebx
+					LOOP copiar_nombre_auxiliar_a_siguiente
+
+					;copiar score
+					MOV edx, 0
+					MOV edx, [ ebx ]
+					MOV[ edi ], edx
+
+			JMP continue_ordenamiento_loop
+
+			final_ordenamiento :
+			nop
+		}
+
 		__asm {
 			lea eax, name
 			ciclar:
@@ -593,37 +782,128 @@ int main() {
 			cmp ecx, 1
 			jne saltarScore
 		}
-		DrawRectangle(GetMonitorWidth(monitor) / 2-100, GetMonitorHeight(monitor) / 2-300, 700, 600, RED);
-		
-		DrawText("score:", 1130, 250, 50, WHITE);
-		int x2 = 920;
-		int y2 = 320;
+		DrawRectangle(leadboardX, leadboardY + 200, leadboardWidth, leadboardHeight, BLACK);
+		char buffer[128] = "TU SCORE: ";
+		strcat(buffer, scoreToString(tmpScore));
+		DrawText(buffer, leadboardX + leadboardWidth / 2 - 100, 250, 50, WHITE);
+
+		int x2 = leadboardX + 20;
+		int y2 = 360;
 		int rank = 1;
-		int recorrer = 0;
-		for (int i = 0; i < 8; i++) {
-			char pos[3] = {rank+'0','-','\0'};
-			DrawText(pos, x2, y2, 40, WHITE);
-			DrawText(jugadores[recorrer].name, x2+50, y2, 40, WHITE);
-			char aux[2] = { jugadores[recorrer].score + '0','\0' };
-			DrawText(aux, x2+500, y2, 40, WHITE);
-			y2 = y2 + 50;
-			rank = rank + 1;
-			recorrer = recorrer + 1;
-		}
+		int recorrer = MAX_PLAYERS;
+		char playerName[64] = {0};
+		int playerScore = 0;
+
+
+
+
+		//typedef struct {
+		//	char name[MAX_INPUT_CHARS];
+		//	int score;
+		//}Player;
+		 
+		
+		// recorrer ranking para dibujo
+		__asm {
+
+
+			recorrer_ranking:
+				LEA esi, players
+				MOV eax, rank
+				DEC eax
+				MOV edx, 0
+				IMUL eax, 68
+				ADD esi, eax
+
+
+				LEA edx, playerName
+
+				MOV edi, esi
+				copiar_nombre_de_jugador :
+
+						MOV bl, [edi]
+						CMP bl, 0
+						JE copiar_score
+						MOV[edx], bl
+
+						INC edi
+						INC edx
+						JMP copiar_nombre_de_jugador
+
+						copiar_score:
+					LEA edi, [esi]
+						ADD edi, 64
+						LEA  edx, playerScore
+						MOV ebx, [edi]
+
+						MOV[edx], ebx
+	}
+		char pos[3] = { rank + '0','-','\0' };
+		DrawText(pos, x2, y2, 40, WHITE);
+		DrawText(playerName, x2 + 50, y2, 40, WHITE);
+		char aux[2] = { playerScore + '0','\0' };
+		DrawText(aux, x2 + 500, y2, 40, WHITE);
+	__asm{
+			ADD y2, 50
+			INC rank
+			MOV playerScore, 0
+
+			MOV ecx, 64
+			LEA edx, playerName
+			vaciar_player_name: 
+				MOV [edx], 0
+				INC edx
+			LOOP vaciar_player_name
+			
+
+			CMP recorrer, 0
+			DEC recorrer
+			JNE recorrer_ranking
+	}
+		//for (int i = 0; i < 8; i++) {
+		//	char pos[3] = { rank + '0','-','\0' };
+		//	DrawText(pos, x2, y2, 40, WHITE);
+		//	DrawText(playerName, x2 + 50, y2, 40, WHITE);
+		//	char aux[2] = { playerScore + '0','\0' };
+		//	DrawText(aux, x2 + 500, y2, 40, WHITE);
+		//	y2 = y2 + 50;
+		//	rank = rank + 1;
+		//	recorrer = recorrer + 1;
+		//}
+
 		__asm {
 		saltarScore:
 			nop
 		}
-		DrawRectangleLines(bird.posX, bird.posY, bird.width, bird.height, GREEN);
-		while (IsKeyPressed(KEY_SPACE) == false && !juegoIniciado) {
+		//DrawRectangleLines(bird.posX, bird.posY, bird.width, bird.height, GREEN);
+		__asm {
+			mov ecx, nombreIntroducido
+			cmp ecx, 1
+			je saltarTexto
+		}
+
+		DrawRectangle(leadboardX, leadboardY, leadboardWidth, 200, BLACK);
+		DrawText("Introduce tu usuario: ", leadboardX + 20, leadboardY + 20, 30, WHITE);
+		DrawRectangle(leadboardX + 10, leadboardY + 80, leadboardWidth - 20, 50, WHITE);
+		DrawText(name, leadboardX + 20, leadboardY + 80, 30, MAROON);
+		DrawText("Pulsa enter o espacio para comenzar", leadboardX + 20, leadboardY + 160, 25, WHITE);
+
+		__asm {
+		saltarTexto:
+			nop
+		}
+
+		while (((IsKeyPressed(KEY_SPACE)) == false && IsKeyPressed(KEY_ENTER) == false) && !juegoIniciado) {
 			__asm {
 				jmp terminarDibujo
 			}
 		}
 		__asm {
 			mov juegoIniciado, 1
-			mov banderaTexto,1
+			mov nombreIntroducido, 1
 		}
+
+		// verificacion nombre
 		__asm {
 			lea eax, name
 			mov ecx, 3
@@ -635,11 +915,13 @@ int main() {
 			loop ciclo 
 			jmp conclusion
 			caracterNuloEncontrado:
-				mov juegoIniciado,0
+				MOV juegoIniciado,0
+				MOV nombreIntroducido, 0
 				jmp terminarDibujo
 			conclusion:
 				nop
 		}
+
 		__asm {
 			LEA eax, bird.posY
 			MOV ebx, [ eax ]
