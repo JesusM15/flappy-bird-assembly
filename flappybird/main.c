@@ -785,10 +785,10 @@ int main() {
 		DrawRectangle(leadboardX, leadboardY + 200, leadboardWidth, leadboardHeight, BLACK);
 		char buffer[128] = "TU SCORE: ";
 		strcat(buffer, scoreToString(tmpScore));
-		DrawText(buffer, leadboardX + leadboardWidth / 2 - 100, 250, 50, WHITE);
+		DrawText(buffer, leadboardX + leadboardWidth / 2 - 100, 350, 30, WHITE);
 
 		int x2 = leadboardX + 20;
-		int y2 = 360;
+		int y2 = 390;
 		int rank = 1;
 		int recorrer = MAX_PLAYERS;
 		char playerName[64] = {0};
